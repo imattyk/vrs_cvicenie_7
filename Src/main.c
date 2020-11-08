@@ -191,6 +191,7 @@ void proccesDmaData(uint8_t* sign, uint8_t len)
 		first_symbol_cycle = 0;
 	}
 
+	//vyhodnotenie malych a velkych pismen ked mame flag last_symbol ako true, resetnu sa rx_data a vsetky pomocne premenne
 	if(last_symbol == 1){
 		calculateLetters(total_len);
 		for(uint8_t i = 0;i<35;i++){
