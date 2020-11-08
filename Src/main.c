@@ -33,10 +33,15 @@ void SystemClock_Config(void);
  *
  * @param1 - received sign
  */
-void proccesDmaData(uint8_t sign);
+void proccesDmaData(uint8_t* sign, uint8_t len);
+void calculateLetters(uint8_t total_len);
 
 
 /* Space for your global variables. */
+uint8_t count = 0;
+uint8_t tx_data[] = "";
+ uint8_t rx_data[35];
+ letter_count_ letter_count;
 
 	// type your global variables here:
 
@@ -58,7 +63,7 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* Space for your local variables, callback registration ...*/
-
+  USART2_RegisterCallback(proccesDmaData);
   	  //type your code here:
 
   while (1)
@@ -68,7 +73,14 @@ int main(void)
 	   * Message format - "Buffer capacity: %d bytes, occupied memory: %d bytes, load [in %]: %f%"
 	   * Example message (what I wish to see in terminal) - Buffer capacity: 1000 bytes, occupied memory: 231 bytes, load [in %]: 23.1%
 	   */
-
+	#if POLLING
+		//Polling for new data, no interrupts
+		USART2_CheckDmaReception();
+		LL_mDelay(10);
+	#else
+		//USART2_PutBuffer(tx_data, sizeof(tx_data));
+		//LL_mDelay(1000);
+	#endif
   	  	  	  //type your code here:
   }
   /* USER CODE END 3 */
@@ -109,11 +121,99 @@ void SystemClock_Config(void)
 /*
  * Implementation of function processing data received via USART.
  */
-void proccesDmaData(uint8_t sign)
+void proccesDmaData(uint8_t* sign, uint8_t len)
 {
 	/* Process received data */
 
+	static uint8_t total_len = 0; //number
+	static uint8_t first_symbol = 0; //boolean
+	static uint8_t last_symbol = 0; //boolean
+	static uint8_t first_symbol_index = 0; //number
+	static uint8_t first_symbol_cycle = 0; //boolean
+
+	//toto sa deje zakazdym ked sme este nedostali znak '#'
+	//program skontroluje teda prijate data ci sa tam nachadza
+	//ak nie tak sa nic nestane a program nespravi nic
+	if(first_symbol == 0){
+		for(uint8_t i = 0; i < len; i++){
+				//ak najde prvy znak flipne boolean, zapamata si jeho index a zapisuje dalsie data uz do rx_data pola
+		    	if(*(sign+i) == '#'){
+		    		first_symbol = 1;
+		    		first_symbol_index = i;
+		    		first_symbol_cycle = 1;
+		    	}
+		    	//tuto zacne zapisovat data do rx_data ak nasiel prvy znak
+		    	if(first_symbol == 1){
+		    		//ak by som dovrsil 35 prijatych znakov, prestane zapisovat a posle data na vyhodnotenie
+		    		if(i == 35){
+		    			last_symbol = 1;
+		    			total_len = 35;
+		    			break;
+		    		}
+		    		rx_data[i-first_symbol_index] = *(sign+i);
+		    		//ak najde aj koncovy znak, flipne aj boolean koncoveho znaku a breakne for cyklus
+		    		if(*(sign+i) == '$'){
+		    			last_symbol = 1;
+		    			total_len = i - first_symbol_index;
+		    			break;
+		    		}
+		    		total_len = first_symbol_index;
+		    	}
+		}
+	}
+
+	//ak program nasiel prvy znak ale nenasiel v tom istom stringu aj koncovi stane sa toto
+	if(first_symbol == 1 && first_symbol_cycle == 0){
+
+	    for(uint8_t i = 0; i < len; i++)
+	    {
+	    	//ak by som dovrsil 35 prijatych znakov, prestane zapisovat a posle data na vyhodnotenie
+	    	if(total_len + i == 35){
+	    		total_len = 35;
+	    		last_symbol = 1;
+	    		break;
+	    	}
+	    	//klasika, len pozeram ci nemam koncovy znak a zapisujem popri tom data do rx_data
+	    	rx_data[i+total_len]=*(sign+i);
+	    	if(*(sign+i) == '$'){
+	    		last_symbol = 1;
+	    		total_len += i;
+	    		break;
+	    	}
+	    }
+	    total_len += len;
+
+	}
+
+	//toto je len toggle na to aby sme vedeli ci sme v cykle spracovania stringu v ktorom sa nasiel prvy znak
+	//ak by pouzivatel poslal koncovy znak v dalsom stringu
+	if(first_symbol_cycle == 1){
+		first_symbol_cycle = 0;
+	}
+
+	if(last_symbol == 1){
+		calculateLetters(total_len);
+		for(uint8_t i = 0;i<35;i++){
+			rx_data[i] = 0;
+		}
+		total_len = 0;
+		last_symbol = 0;
+		first_symbol = 0;
+	}
+
+
 		// type your algorithm here:
+}
+
+void calculateLetters(uint8_t total_len){
+	for(uint8_t i=0;i<total_len;i++){
+				if(rx_data[i] > 96 && rx_data[i] < 123){
+					letter_count.small_letter++;
+				}
+				if(rx_data[i] > 64 && rx_data[i]<91){
+					letter_count.capital_letter++;
+				}
+			}
 }
 
 
