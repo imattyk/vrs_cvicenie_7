@@ -23,6 +23,8 @@
 #include "dma.h"
 #include "usart.h"
 #include "gpio.h"
+#include <string.h>
+#include <stdio.h>
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -33,15 +35,30 @@ void SystemClock_Config(void);
  *
  * @param1 - received sign
  */
-void proccesDmaData(uint8_t* sign, uint8_t len);
+void proccesDmaData(uint8_t* sign, uint8_t len, uint8_t used_bytes);
 void calculateLetters(uint8_t total_len);
 
 
 /* Space for your global variables. */
-uint8_t count = 0;
-uint8_t tx_data[] = "";
- uint8_t rx_data[35];
- letter_count_ letter_count;
+	uint8_t count = 0;
+	uint8_t tx_data[1000];
+	uint8_t intro[] = "Buffer capacity 256 bytes, occupied: ";
+	uint8_t middle[] = " bytes, load [in %]: ";
+	uint8_t percent_char[] = "% ";
+	double used_percent;
+	int used_memory = 0;
+	char used_memory_char[3] = "0";
+	char used_percent_char[100] = "0";
+
+
+	uint8_t total_len = 0; //number
+	uint8_t first_symbol = 0; //boolean
+	uint8_t last_symbol = 0; //boolean
+	uint8_t first_symbol_index = 0; //number
+	uint8_t first_symbol_cycle = 0; //boolean
+	uint8_t rx_data[35];
+	letter_count_ letter_count;
+
 
 	// type your global variables here:
 
@@ -81,6 +98,20 @@ int main(void)
 		//USART2_PutBuffer(tx_data, sizeof(tx_data));
 		//LL_mDelay(1000);
 	#endif
+
+		//nalepim sicky data na seba
+		memset(tx_data,0,1000);
+		strcat(tx_data, intro);
+		strcat(tx_data, used_memory_char);
+		strcat(tx_data, middle);
+		strcat(tx_data, used_percent_char);
+		strcat(tx_data, percent_char);
+
+		//a poslem
+		USART2_PutBuffer(tx_data, sizeof(tx_data));
+
+		//200ms, trosku z toho chytam epilepsiu
+		LL_mDelay(200);
   	  	  	  //type your code here:
   }
   /* USER CODE END 3 */
@@ -121,15 +152,9 @@ void SystemClock_Config(void)
 /*
  * Implementation of function processing data received via USART.
  */
-void proccesDmaData(uint8_t* sign, uint8_t len)
+void proccesDmaData(uint8_t* sign, uint8_t len, uint8_t used_bytes)
 {
 	/* Process received data */
-
-	static uint8_t total_len = 0; //number
-	static uint8_t first_symbol = 0; //boolean
-	static uint8_t last_symbol = 0; //boolean
-	static uint8_t first_symbol_index = 0; //number
-	static uint8_t first_symbol_cycle = 0; //boolean
 
 	//toto sa deje zakazdym ked sme este nedostali znak '#'
 	//program skontroluje teda prijate data ci sa tam nachadza
@@ -157,7 +182,7 @@ void proccesDmaData(uint8_t* sign, uint8_t len)
 		    			total_len = i - first_symbol_index;
 		    			break;
 		    		}
-		    		total_len = first_symbol_index;
+		    		total_len = i - first_symbol_index;
 		    	}
 		}
 	}
@@ -202,8 +227,12 @@ void proccesDmaData(uint8_t* sign, uint8_t len)
 		first_symbol = 0;
 	}
 
+	//ulozime si kolko nam zostava pamata v beffery, prepocitame na percenta a ulozime do arrayov charov.
+	used_memory = (int)used_bytes;
+	used_percent = (((double)used_memory)/256)*100;
+	sprintf(used_memory_char, "%d", used_memory);
+	sprintf(used_percent_char, "%d", (int)used_percent);
 
-		// type your algorithm here:
 }
 
 void calculateLetters(uint8_t total_len){
@@ -216,6 +245,8 @@ void calculateLetters(uint8_t total_len){
 				}
 			}
 }
+
+
 
 
 void Error_Handler(void)
