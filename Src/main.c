@@ -145,7 +145,7 @@ void proccesDmaData(uint8_t* sign, uint8_t len)
 		    	//tuto zacne zapisovat data do rx_data ak nasiel prvy znak
 		    	if(first_symbol == 1){
 		    		//ak by som dovrsil 35 prijatych znakov, prestane zapisovat a posle data na vyhodnotenie
-		    		if(i == 35){
+		    		if(i-first_symbol_index == 35){
 		    			last_symbol = 1;
 		    			total_len = 35;
 		    			break;
